@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Súper Biblia Explorer - Niños y Familia 📖✨</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel CDN -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .font-serif {
+      font-family: 'Lora', Georgia, serif;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F6FA;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+  </style>
+</head>
+<body class="bg-[#F0F6FA] text-slate-800 antialiased selection:bg-yellow-200">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const BOOK_CACHE = {};
+
+    // =========================================================================
+    // CANON BÍBLICO OFICIAL (66 LIBROS - REINA VALERA 1960)
+    // =========================================================================
+    const BIBLE_BOOKS = [
+      // Pentateuco (5)
+      { id: 'Genesis', code: 'gn', name: 'Génesis', chapters: 50, author: 'Moisés', cat: 'Pentateuco', icon: '🌍' },
+      { id: 'Exodus', code: 'ex', name: 'Éxodo', chapters: 40, author: 'Moisés', cat: 'Pentateuco', icon: '🌊' },
+      { id: 'Leviticus', code: 'lv', name: 'Levítico', chapters: 27, author: 'Moisés', cat: 'Pentateuco', icon: '📜' },
+      { id: 'Numbers', code: 'nm', name: 'Números', chapters: 36, author: 'Moisés', cat: 'Pentateuco', icon: '⛺' },
+      { id: 'Deuteronomy', code: 'dt', name: 'Deuteronomio', chapters: 34, author: 'Moisés', cat: 'Pentateuco', icon: '📜' },
+      
+      // Históricos AT (12)
+      { id: 'Joshua', code: 'js', name: 'Josué', chapters: 24, author: 'Josué', cat: 'Históricos', icon: '🎺' },
+      { id: 'Judges', code: 'jud', name: 'Jueces', chapters: 21, author: 'Samuel', cat: 'Históricos', icon: '👑' },
+      { id: 'Ruth', code: 'rt', name: 'Rut', chapters: 4, author: 'Desconocido', cat: 'Históricos', icon: '🌾' },
+      { id: '1 Samuel', code: '1sm', name: '1 Samuel', chapters: 31, author: 'Samuel / Gad', cat: 'Históricos', icon: '👑' },
+      { id: '2 Samuel', code: '2sm', name: '2 Samuel', chapters: 24, author: 'Gad / Natán', cat: 'Históricos', icon: '👑' },
+      { id: '1 Kings', code: '1kgs', name: '1 Reyes', chapters: 22, author: 'Jeremías', cat: 'Históricos', icon: '🏰' },
+      { id: '2 Kings', code: '2kgs', name: '2 Reyes', chapters: 25, author: 'Jeremías', cat: 'Históricos', icon: '🏰' },
+      { id: '1 Chronicles', code: '1ch', name: '1 Crónicas', chapters: 29, author: 'Esdras', cat: 'Históricos', icon: '📜' },
+      { id: '2 Chronicles', code: '2ch', name: '2 Crónicas', chapters: 36, author: 'Esdras', cat: 'Históricos', icon: '📜' },
+      { id: 'Ezra', code: 'ezr', name: 'Esdras', chapters: 10, author: 'Esdras', cat: 'Históricos', icon: '🏛️' },
+      { id: 'Nehemiah', code: 'ne', name: 'Nehemías', chapters: 13, author: 'Nehemías', cat: 'Históricos', icon: '🧱' },
+      { id: 'Esther', code: 'et', name: 'Ester', chapters: 10, author: 'Mardoqueo', cat: 'Históricos', icon: '👸' },
+
+      // Poéticos y Sapienciales (5)
+      { id: 'Job', code: 'job', name: 'Job', chapters: 42, author: 'Desconocido', cat: 'Poéticos', icon: '✨' },
+      { id: 'Psalms', code: 'ps', name: 'Salmos', chapters: 150, author: 'David y otros', cat: 'Poéticos', icon: '🎵' },
+      { id: 'Proverbs', code: 'prv', name: 'Proverbios', chapters: 31, author: 'Salomón', cat: 'Poéticos', icon: '💡' },
+      { id: 'Ecclesiastes', code: 'ec', name: 'Eclesiastés', chapters: 12, author: 'Salomón', cat: 'Poéticos', icon: '⏳' },
+      { id: 'Song of Solomon', code: 'so', name: 'Cantares', chapters: 8, author: 'Salomón', cat: 'Poéticos', icon: '🌹' },
+
+      // Profetas Mayores (5)
+      { id: 'Isaiah', code: 'is', name: 'Isaías', chapters: 66, author: 'Isaías', cat: 'Profetas', icon: '👁️' },
+      { id: 'Jeremiah', code: 'jr', name: 'Jeremías', chapters: 52, author: 'Jeremías', cat: 'Profetas', icon: '🏺' },
+      { id: 'Lamentations', code: 'lm', name: 'Lamentaciones', chapters: 5, author: 'Jeremías', cat: 'Profetas', icon: '💧' },
+      { id: 'Ezekiel', code: 'ez', name: 'Ezequiel', chapters: 48, author: 'Ezequiel', cat: 'Profetas', icon: '🔥' },
+      { id: 'Daniel', code: 'dn', name: 'Daniel', chapters: 12, author: 'Daniel', cat: 'Profetas', icon: '🦁' },
+
+      // Profetas Menores (12)
+      { id: 'Hosea', code: 'ho', name: 'Oseas', chapters: 14, author: 'Oseas', cat: 'Profetas', icon: '🕊️' },
+      { id: 'Joel', code: 'jl', name: 'Joel', chapters: 3, author: 'Joel', cat: 'Profetas', icon: '🌾' },
+      { id: 'Amos', code: 'am', name: 'Amós', chapters: 9, author: 'Amós', cat: 'Profetas', icon: '⚖️' },
+      { id: 'Obadiah', code: 'ob', name: 'Abdías', chapters: 1, author: 'Abdías', cat: 'Profetas', icon: '⛰️' },
+      { id: 'Jonah', code: 'jn', name: 'Jonás', chapters: 4, author: 'Jonás', cat: 'Profetas', icon: '🐋' },
+      { id: 'Micah', code: 'mi', name: 'Miqueas', chapters: 7, author: 'Miqueas', cat: 'Profetas', icon: '⭐' },
+      { id: 'Nahum', code: 'na', name: 'Nahúm', chapters: 3, author: 'Nahúm', cat: 'Profetas', icon: '🛡️' },
+      { id: 'Habakkuk', code: 'hk', name: 'Habacuc', chapters: 3, author: 'Habacuc', cat: 'Profetas', icon: '🧗' },
+      { id: 'Zephaniah', code: 'zp', name: 'Sofonías', chapters: 3, author: 'Sofonías', cat: 'Profetas', icon: '☀️' },
+      { id: 'Haggai', code: 'hg', name: 'Hageo', chapters: 2, author: 'Hageo', cat: 'Profetas', icon: '🏛️' },
+      { id: 'Zechariah', code: 'zc', name: 'Zacarías', chapters: 14, author: 'Zacarías', cat: 'Profetas', icon: '🌙' },
+      { id: 'Malachi', code: 'ml', name: 'Malaquías', chapters: 4, author: 'Malaquías', cat: 'Profetas', icon: '📜' },
+
+      // Evangelios e Historia NT (5)
+      { id: 'Matthew', code: 'mt', name: 'Mateo', chapters: 28, author: 'Mateo', cat: 'Evangelios', icon: '🕊️' },
+      { id: 'Mark', code: 'mk', name: 'Marcos', chapters: 16, author: 'Juan Marcos', cat: 'Evangelios', icon: '🦁' },
+      { id: 'Luke', code: 'lk', name: 'Lucas', chapters: 24, author: 'Lucas', cat: 'Evangelios', icon: '🐂' },
+      { id: 'John', code: 'jo', name: 'Juan', chapters: 21, author: 'Juan', cat: 'Evangelios', icon: '🦅' },
+      { id: 'Acts', code: 'act', name: 'Hechos', chapters: 28, author: 'Lucas', cat: 'Historia NT', icon: '⛵' },
+
+      // Cartas Paulinas y Generales (21)
+      { id: 'Romans', code: 'rm', name: 'Romanos', chapters: 16, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: '1 Corinthians', code: '1co', name: '1 Corintios', chapters: 16, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: '2 Corinthians', code: '2co', name: '2 Corintios', chapters: 13, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: 'Galatians', code: 'gl', name: 'Gálatas', chapters: 6, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: 'Ephesians', code: 'eph', name: 'Efesios', chapters: 6, author: 'Pablo', cat: 'Cartas', icon: '🛡️' },
+      { id: 'Philippians', code: 'ph', name: 'Filipenses', chapters: 4, author: 'Pablo', cat: 'Cartas', icon: '😊' },
+      { id: 'Colossians', code: 'cl', name: 'Colosenses', chapters: 4, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: '1 Thessalonians', code: '1ts', name: '1 Tesalonicenses', chapters: 5, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: '2 Thessalonians', code: '2ts', name: '2 Tesalonicenses', chapters: 3, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: '1 Timothy', code: '1tm', name: '1 Timoteo', chapters: 6, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: '2 Timothy', code: '2tm', name: '2 Timoteo', chapters: 4, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: 'Titus', code: 'tt', name: 'Tito', chapters: 3, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: 'Philemon', code: 'phm', name: 'Filemón', chapters: 1, author: 'Pablo', cat: 'Cartas', icon: '✉️' },
+      { id: 'Hebrews', code: 'hb', name: 'Hebreos', chapters: 13, author: 'Anónimo', cat: 'Cartas', icon: '⚓' },
+      { id: 'James', code: 'jm', name: 'Santiago', chapters: 5, author: 'Santiago', cat: 'Cartas', icon: '🌱' },
+      { id: '1 Peter', code: '1pe', name: '1 Pedro', chapters: 5, author: 'Pedro', cat: 'Cartas', icon: '🪨' },
+      { id: '2 Peter', code: '2pe', name: '2 Pedro', chapters: 3, author: 'Pedro', cat: 'Cartas', icon: '⭐' },
+      { id: '1 John', code: '1jo', name: '1 Juan', chapters: 5, author: 'Juan', cat: 'Cartas', icon: '❤️' },
+      { id: '2 John', code: '2jo', name: '2 Juan', chapters: 1, author: 'Juan', cat: 'Cartas', icon: '❤️' },
+      { id: '3 John', code: '3jo', name: '3 Juan', chapters: 1, author: 'Juan', cat: 'Cartas', icon: '❤️' },
+      { id: 'Jude', code: 'jd', name: 'Judas', chapters: 1, author: 'Judas', cat: 'Cartas', icon: '✉️' },
+
+      // Profético NT (1)
+      { id: 'Revelation', code: 're', name: 'Apocalipsis', chapters: 22, author: 'Juan', cat: 'Profético NT', icon: '🌈' },
+    ];
+
+    const CATEGORIES = ['Todos', 'Pentateuco', 'Históricos', 'Poéticos', 'Profetas', 'Evangelios', 'Historia NT', 'Cartas', 'Profético NT'];
+
+    const HIGHLIGHT_COLORS = [
+      { id: 'yellow', name: 'Sol (Promesa)', bgClass: 'bg-yellow-100 border-l-4 border-yellow-400', badgeClass: 'bg-yellow-400' },
+      { id: 'green', name: 'Esperanza (Vida)', bgClass: 'bg-emerald-100 border-l-4 border-emerald-400', badgeClass: 'bg-emerald-400' },
+      { id: 'blue', name: 'Cielo (Fe)', bgClass: 'bg-sky-100 border-l-4 border-sky-400', badgeClass: 'bg-sky-400' },
+      { id: 'pink', name: 'Amor (Paz)', bgClass: 'bg-pink-100 border-l-4 border-pink-400', badgeClass: 'bg-pink-400' },
+    ];
+
+    // =========================================================================
+    // MODOS PROFESIONALES DE NARRACIÓN (VOZ 1, VOZ 2, VOZ 3, VOZ 4)
+    // =========================================================================
+    const VOICE_OPTIONS = {
+      voz1: {
+        id: 'voz1',
+        title: 'Voz 1: Dinámica y Clara',
+        desc: 'Tono enérgico, juvenil y fluido. Ideal para lectura continuada y niños.',
+        pitch: 1.08,
+        rate: 1.0,
+        badge: '🎙️ Voz 1'
+      },
+      voz2: {
+        id: 'voz2',
+        title: 'Voz 2: Solemne y Profunda',
+        desc: 'Voz masculina madura, elegante, profunda y reverente.',
+        pitch: 0.88,
+        rate: 0.90,
+        badge: '🎙️ Voz 2'
+      },
+      voz3: {
+        id: 'voz3',
+        title: 'Voz 3: Suave y Serena',
+        desc: 'Tono pausado, cálido y reconfortante. Ideal para los Salmos o descanso.',
+        pitch: 0.95,
+        rate: 0.84,
+        badge: '🎙️ Voz 3'
+      },
+      voz4: {
+        id: 'voz4',
+        title: 'Voz 4: Estándar y Natural',
+        desc: 'Tono natural y neutro según el sintetizador predeterminado.',
+        pitch: 1.0,
+        rate: 0.95,
+        badge: '🎙️ Voz 4'
+      }
+    };
+
+    const KIDS_STORIES = [
+      { title: 'David y el Gigante Goliat', bookId: '1 Samuel', chapter: 17, verse: 45, icon: '🪨', desc: 'Un joven pastor vence al gigante filisteo con fe y valentía.' },
+      { title: 'La Creación del Mundo', bookId: 'Genesis', chapter: 1, verse: 1, icon: '🌍', desc: 'Cómo Dios creó los cielos, la tierra, las plantas y los animales.' },
+      { title: 'El Arca de Noé', bookId: 'Genesis', chapter: 7, verse: 1, icon: '🚢', desc: 'Noé obedece a Dios y salva a los animales del gran diluvio.' },
+      { title: 'El Buen Pastor', bookId: 'Psalms', chapter: 23, verse: 1, icon: '🐑', desc: 'Jehová es mi pastor; nada me faltará. El Salmo más hermoso de paz.' },
+      { title: 'Nacimiento del Niño Jesús', bookId: 'Luke', chapter: 2, verse: 10, icon: '⭐', desc: 'Ángeles anuncian a los pastores las buenas nuevas en Belén.' },
+      { title: 'El Buen Samaritano', bookId: 'Luke', chapter: 10, verse: 33, icon: '❤️', desc: 'Jesús nos enseña a amar y ayudar a nuestro prójimo con alegría.' },
+      { title: 'Jesús Calma la Tempestad', bookId: 'Mark', chapter: 4, verse: 39, icon: '⛈️', desc: 'El viento y las olas obedecen la voz del Maestro.' },
+      { title: 'La Resurrección de Jesús', bookId: 'Mark', chapter: 16, verse: 6, icon: '🌅', desc: '¡No está aquí! Ha resucitado con victoria y poder.' }
+    ];
+
+    const KIDS_GLOSSARY = [
+      { term: 'Pacto', emoji: '🤝', simpleDef: 'Una promesa de amor y fidelidad que Dios hace con Sus hijos.' },
+      { term: 'Gracia', emoji: '🎁', simpleDef: 'Un regalo maravilloso e inmerecido del amor y perdón de Dios.' },
+      { term: 'Querubín', emoji: '👼', simpleDef: 'Ángeles guardianes especiales que adoran a Dios y reflejan Su gloria.' },
+      { term: 'Parábola', emoji: '📖', simpleDef: 'Una pequeña historia con ejemplos de la vida diaria que Jesús usaba para enseñar.' },
+      { term: 'Evangelio', emoji: '📣', simpleDef: 'Significa "Buenas Noticias": el mensaje de salvación y esperanza de Jesús.' },
+      { term: 'Arca', emoji: '📦', simpleDef: 'Nave o cofre de madera construido para proteger algo sagrado o salvar vidas.' }
+    ];
+
+    const BIBLE_TRIVIA = [
+      {
+        q: '¿Quién construyó una gran arca para salvar a los animales del diluvio?',
+        options: ['Moisés', 'Noé', 'David', 'Jonás'],
+        correct: 1,
+        expl: '¡Correcto! Noé confió en Dios y construyó el arca (Génesis 6).'
+      },
+      {
+        q: '¿Con qué objeto venció el joven David al gigante Goliat?',
+        options: ['Una espada mágica', 'Una lanza de hierro', 'Una honda y una piedra lisa', 'Un arco'],
+        correct: 2,
+        expl: '¡Genial! David confió en el poder de Dios y usó su honda (1 Samuel 17).'
+      },
+      {
+        q: '¿En qué ciudad nació Jesús?',
+        options: ['Jerusalén', 'Nazaret', 'Belén', 'Roma'],
+        correct: 2,
+        expl: '¡Muy bien! Jesús nació en Belén como lo anunciaron los profetas (Lucas 2).'
+      }
+    ];
+
+    const CRITICAL_NOTES = {
+      "Mark_16_9": "Los manuscritos más antiguos de la Biblia (Códice Sinaítico y Vaticano) terminan en el v.8. La tradición añadió los versículos posteriores para contar las apariciones de Jesús resucitado.",
+      "Genesis_1_1": "La palabra hebrea para Dios aquí es 'Elohim' (אֱלֹהִים), un plural de majestad que acompaña al verbo 'creó' en singular (Bará).",
+      "John_3_16": "Este versículo es conocido como el 'Corazón de la Biblia' porque resume todo el amor y salvación de Dios."
+    };
+
+    function getBestSpanishMaleVoice() {
+      if (!('speechSynthesis' in window)) return null;
+      const voices = window.speechSynthesis.getVoices();
+      if (!voices || voices.length === 0) return null;
+
+      const spanishVoices = voices.filter(v => v.lang.startsWith('es') || v.lang.includes('Spanish') || v.lang.includes('es-'));
+      if (spanishVoices.length === 0) return null;
+
+      const maleKeywords = ['alvaro', 'jorge', 'gonzalo', 'diego', 'pablo', 'carlos', 'manuel', 'david', 'male', 'hombre', 'enrique', 'miguel', 'raul', 'julio', 'hector', 'tomas'];
+
+      for (const v of spanishVoices) {
+        const vName = v.name.toLowerCase();
+        const isMale = maleKeywords.some(k => vName.includes(k));
+        const isNatural = vName.includes('natural') || vName.includes('online') || vName.includes('neural') || vName.includes('google');
+        if (isMale && isNatural) return v;
+      }
+
+      for (const v of spanishVoices) {
+        const vName = v.name.toLowerCase();
+        if (maleKeywords.some(k => vName.includes(k))) return v;
+      }
+
+      const naturalAny = spanishVoices.find(v => v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('google'));
+      if (naturalAny) return naturalAny;
+
+      return spanishVoices[0];
+    }
+
+    // =========================================================================
+    // COMPONENTE PRINCIPAL
+    // =========================================================================
+    function App() {
+      const [activeTab, setActiveTab] = useState('explorer');
+      const [searchTerm, setSearchTerm] = useState('');
+      const [selectedCategory, setSelectedCategory] = useState('Todos');
+      const [selectedBook, setSelectedBook] = useState(null);
+      const [selectedChapter, setSelectedChapter] = useState(null);
+      const [targetVerse, setTargetVerse] = useState(null);
+      const [verses, setVerses] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState('');
+
+      const [favorites, setFavorites] = useState(() => {
+        try {
+          const saved = localStorage.getItem('super_biblia_favorites');
+          return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+      });
+
+      const [highlights, setHighlights] = useState(() => {
+        try {
+          const saved = localStorage.getItem('super_biblia_highlights');
+          return saved ? JSON.parse(saved) : {};
+        } catch { return {}; }
+      });
+
+      const [fontSize, setFontSize] = useState('normal');
+      
+      // Control de audio
+      const [isSpeaking, setIsSpeaking] = useState(false);
+      const [currentSpeakingVerse, setCurrentSpeakingVerse] = useState(null);
+      const [audioVoiceModalOpen, setAudioVoiceModalOpen] = useState(false);
+      const [availableVoices, setAvailableVoices] = useState([]);
+      const [selectedVoiceName, setSelectedVoiceName] = useState(() => {
+        return localStorage.getItem('super_biblia_voice') || '';
+      });
+
+      // Opción de voz activa: 'voz1' por defecto
+      const [activeVoiceOption, setActiveVoiceOption] = useState(() => {
+        return localStorage.getItem('super_biblia_voice_opt') || 'voz1';
+      });
+
+      const [voicePitch, setVoicePitch] = useState(() => {
+        const saved = localStorage.getItem('super_biblia_voice_opt') || 'voz1';
+        return VOICE_OPTIONS[saved] ? VOICE_OPTIONS[saved].pitch : 1.08;
+      });
+
+      const [voiceRate, setVoiceRate] = useState(() => {
+        const saved = localStorage.getItem('super_biblia_voice_opt') || 'voz1';
+        return VOICE_OPTIONS[saved] ? VOICE_OPTIONS[saved].rate : 1.0;
+      });
+
+      const audioQueueRef = useRef({ isPlaying: false, verseIdx: 0, verses: [] });
+
+      const [copiedId, setCopiedId] = useState(null);
+      const [activeColorPicker, setActiveColorPicker] = useState(null);
+      const [noteModalVerse, setNoteModalVerse] = useState(null);
+      const [noteInputText, setNoteInputText] = useState('');
+      const [cardModalData, setCardModalData] = useState(null);
+      const [filterFavColor, setFilterFavColor] = useState('all');
+
+      // Trivia
+      const [triviaStep, setTriviaStep] = useState(0);
+      const [triviaSelectedOpt, setTriviaSelectedOpt] = useState(null);
+      const [triviaScore, setTriviaScore] = useState(0);
+
+      useEffect(() => {
+        localStorage.setItem('super_biblia_favorites', JSON.stringify(favorites));
+      }, [favorites]);
+
+      useEffect(() => {
+        localStorage.setItem('super_biblia_highlights', JSON.stringify(highlights));
+      }, [highlights]);
+
+      // Cambiar opción de voz (Voz 1, Voz 2, Voz 3, Voz 4)
+      const handleSelectVoiceOption = (optKey) => {
+        const opt = VOICE_OPTIONS[optKey];
+        if (opt) {
+          setActiveVoiceOption(optKey);
+          setVoicePitch(opt.pitch);
+          setVoiceRate(opt.rate);
+          localStorage.setItem('super_biblia_voice_opt', optKey);
+        }
+      };
+
+      useEffect(() => {
+        const updateVoices = () => {
+          if ('speechSynthesis' in window) {
+            const allVoices = window.speechSynthesis.getVoices();
+            const spVoices = allVoices.filter(v => v.lang.startsWith('es') || v.lang.includes('Spanish') || v.lang.includes('es-'));
+            setAvailableVoices(spVoices);
+
+            if (!selectedVoiceName && spVoices.length > 0) {
+              const bestMale = getBestSpanishMaleVoice();
+              if (bestMale) setSelectedVoiceName(bestMale.name);
+            }
+          }
+        };
+
+        updateVoices();
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.onvoiceschanged = updateVoices;
+        }
+
+        return () => {
+          stopSpeech();
+        };
+      }, []);
+
+      const filteredBooks = BIBLE_BOOKS.filter(b => {
+        const matchesSearch = 
+          b.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+          b.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          b.cat.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = selectedCategory === 'Todos' || b.cat === selectedCategory;
+        return matchesSearch && matchesCategory;
+      });
+
+      const fetchChapter = async (book, chapter, verseToFocus = null) => {
+        setLoading(true);
+        setError('');
+        setSelectedBook(book);
+        setSelectedChapter(chapter);
+        setTargetVerse(verseToFocus);
+        stopSpeech();
+
+        const bookCode = book.code;
+
+        try {
+          let bookData = BOOK_CACHE[bookCode];
+
+          if (!bookData) {
+            try {
+              const res = await fetch(`https://cdn.jsdelivr.net/gh/maatheusgois/bible@main/versions/es/rvr/${bookCode}/${bookCode}.json`);
+              if (!res.ok) throw new Error('CDN error');
+              bookData = await res.json();
+            } catch (cdnErr) {
+              const res2 = await fetch(`https://raw.githubusercontent.com/maatheusgois/bible/main/versions/es/rvr/${bookCode}/${bookCode}.json`);
+              if (!res2.ok) throw new Error('GitHub error');
+              bookData = await res2.json();
+            }
+            BOOK_CACHE[bookCode] = bookData;
+          }
+
+          if (bookData && bookData.chapters && bookData.chapters[chapter - 1]) {
+            const rawChapter = bookData.chapters[chapter - 1];
+            const parsedVerses = rawChapter.map((verseText, idx) => ({
+              verse: idx + 1,
+              text: verseText
+            }));
+            setVerses(parsedVerses);
+          } else {
+            throw new Error('Capítulo no encontrado');
+          }
+        } catch (err) {
+          setError(`No pudimos cargar ${book.name} ${chapter}. Por favor revisa tu conexión.`);
+          setVerses([]);
+        }
+        setLoading(false);
+      };
+
+      // =======================================================================
+      // SISTEMA DE AUDIO VERSÍCULO A VERSÍCULO
+      // =======================================================================
+      const startSpeechFromVerse = (startIdx = 0) => {
+        if (!('speechSynthesis' in window) || verses.length === 0) return;
+
+        window.speechSynthesis.cancel();
+        audioQueueRef.current = {
+          isPlaying: true,
+          verseIdx: startIdx,
+          verses: verses
+        };
+        setIsSpeaking(true);
+        playNextVerseInQueue();
+      };
+
+      const playNextVerseInQueue = () => {
+        const queue = audioQueueRef.current;
+        if (!queue.isPlaying || queue.verseIdx >= queue.verses.length) {
+          stopSpeech();
+          return;
+        }
+
+        const v = queue.verses[queue.verseIdx];
+        setCurrentSpeakingVerse(v.verse);
+
+        const textToSay = queue.verseIdx === 0
+          ? `${selectedBook.name}, capítulo ${selectedChapter}. Versículo 1. ${v.text}`
+          : `Versículo ${v.verse}. ${v.text}`;
+
+        const utterance = new SpeechSynthesisUtterance(textToSay);
+        utterance.lang = 'es-ES';
+        utterance.rate = voiceRate;
+        utterance.pitch = voicePitch;
+
+        const allVoices = window.speechSynthesis.getVoices();
+        let targetVoice = allVoices.find(item => item.name === selectedVoiceName);
+        if (!targetVoice) {
+          targetVoice = getBestSpanishMaleVoice();
+        }
+        if (targetVoice) {
+          utterance.voice = targetVoice;
+        }
+
+        utterance.onend = () => {
+          if (audioQueueRef.current.isPlaying) {
+            audioQueueRef.current.verseIdx += 1;
+            playNextVerseInQueue();
+          }
+        };
+
+        utterance.onerror = () => {
+          if (audioQueueRef.current.isPlaying) {
+            audioQueueRef.current.verseIdx += 1;
+            playNextVerseInQueue();
+          }
+        };
+
+        window.speechSynthesis.speak(utterance);
+      };
+
+      const testVoiceSample = () => {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+
+        const sampleText = "Lámpara es a mis pies tu palabra, y lumbrera a mi camino. Salmos 119:105.";
+        const utterance = new SpeechSynthesisUtterance(sampleText);
+        utterance.lang = 'es-ES';
+        utterance.rate = voiceRate;
+        utterance.pitch = voicePitch;
+
+        const allVoices = window.speechSynthesis.getVoices();
+        let targetVoice = allVoices.find(item => item.name === selectedVoiceName);
+        if (!targetVoice) targetVoice = getBestSpanishMaleVoice();
+        if (targetVoice) utterance.voice = targetVoice;
+
+        window.speechSynthesis.speak(utterance);
+      };
+
+      const toggleSpeech = () => {
+        if (isSpeaking) {
+          stopSpeech();
+        } else {
+          startSpeechFromVerse(0);
+        }
+      };
+
+      const stopSpeech = () => {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+        audioQueueRef.current.isPlaying = false;
+        setIsSpeaking(false);
+        setCurrentSpeakingVerse(null);
+      };
+
+      const toggleFavorite = (book, chapter, verseNum, text) => {
+        const key = `${book.id}_${chapter}_${verseNum}`;
+        const exists = favorites.find(f => f.key === key);
+        if (exists) {
+          setFavorites(favorites.filter(f => f.key !== key));
+        } else {
+          const newFav = {
+            key,
+            bookId: book.id,
+            bookName: book.name,
+            bookIcon: book.icon,
+            chapter,
+            verse: verseNum,
+            text,
+            color: highlights[key] || 'yellow',
+            note: '',
+            date: new Date().toLocaleDateString('es-ES')
+          };
+          setFavorites([newFav, ...favorites]);
+        }
+      };
+
+      const setVerseHighlight = (book, chapter, verseNum, colorId) => {
+        const key = `${book.id}_${chapter}_${verseNum}`;
+        if (!colorId) {
+          const newH = { ...highlights };
+          delete newH[key];
+          setHighlights(newH);
+        } else {
+          setHighlights({ ...highlights, [key]: colorId });
+          setFavorites(favorites.map(f => f.key === key ? { ...f, color: colorId } : f));
+        }
+        setActiveColorPicker(null);
+      };
+
+      const saveVerseNote = () => {
+        if (!noteModalVerse) return;
+        const { key } = noteModalVerse;
+        setFavorites(favorites.map(f => f.key === key ? { ...f, note: noteInputText } : f));
+        setNoteModalVerse(null);
+        setNoteInputText('');
+      };
+
+      const handleCopyText = (bookName, chapter, verseNum, text) => {
+        const textToCopy = `📖 ${bookName} ${chapter}:${verseNum}\n"${text}"\n(Reina Valera 1960)`;
+        navigator.clipboard.writeText(textToCopy);
+        setCopiedId(`${bookName}_${chapter}_${verseNum}`);
+        setTimeout(() => setCopiedId(null), 2000);
+      };
+
+      const shareToWhatsAppDirect = (bookName, chapter, verseNum, text) => {
+        const message = 
+`✨ *PALABRA DE VIDA* ✨
+━━━━━━━━━━━━━━━━━━━━
+📖 *${bookName} ${chapter}:${verseNum}*
+
+> "${text}"
+
+━━━━━━━━━━━━━━━━━━━━
+🕊️ _Súper Biblia Explorer Kids_`;
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank');
+      };
+
+      const jumpToStory = (story) => {
+        const book = BIBLE_BOOKS.find(b => b.id === story.bookId);
+        if (book) {
+          setActiveTab('explorer');
+          fetchChapter(book, story.chapter, story.verse);
+        }
+      };
+
+      const jumpFromFavorite = (fav) => {
+        const book = BIBLE_BOOKS.find(b => b.id === fav.bookId);
+        if (book) {
+          setActiveTab('explorer');
+          fetchChapter(book, fav.chapter, fav.verse);
+        }
+      };
+
+      return (
+        <div className="min-h-screen pb-24 md:pb-12">
+          
+          {/* HEADER PRINCIPAL */}
+          <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 text-white p-4 sm:p-5 shadow-lg sticky top-0 z-30 rounded-b-3xl">
+            <div className="max-w-5xl mx-auto flex items-center justify-between">
+              
+              <div className="flex items-center space-x-3">
+                {activeTab === 'explorer' && (selectedBook || selectedChapter) && (
+                  <button 
+                    onClick={() => {
+                      stopSpeech();
+                      if (selectedChapter) setSelectedChapter(null);
+                      else setSelectedBook(null);
+                    }} 
+                    className="p-2 bg-white/20 hover:bg-white/30 active:scale-90 rounded-full transition-all text-white font-bold"
+                  >
+                    ⬅️
+                  </button>
+                )}
+                
+                <div className="flex items-center space-x-2.5 cursor-pointer" onClick={() => setActiveTab('explorer')}>
+                  <div className="p-2 bg-yellow-400 text-blue-900 rounded-2xl shadow-md text-xl">
+                    📖
+                  </div>
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-1.5">
+                      Súper Biblia Explorer ✨
+                    </h1>
+                    <p className="text-xs text-blue-100 font-medium hidden sm:block">
+                      66 Libros Canónicos (RVR1960) • Edición Niños y Familia
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* BARRA DE NAVEGACIÓN Y BOTÓN DE VOZ EN EL HEADER */}
+              <div className="flex items-center space-x-2">
+                {/* Botón Ajustes de Voz (Visible siempre) */}
+                <button
+                  onClick={() => setAudioVoiceModalOpen(true)}
+                  className="bg-yellow-400 hover:bg-yellow-300 text-slate-900 px-3 py-1.5 rounded-xl font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
+                  title="Configurar Voz del Narrador"
+                >
+                  <span>🎙️</span>
+                  <span className="hidden sm:inline">{VOICE_OPTIONS[activeVoiceOption]?.badge || 'Voz'}</span>
+                </button>
+
+                <nav className="hidden md:flex items-center space-x-1.5 bg-black/15 p-1 rounded-2xl">
+                  <button
+                    onClick={() => setActiveTab('explorer')}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                      activeTab === 'explorer' ? 'bg-white text-blue-700 shadow-sm' : 'text-white/90 hover:bg-white/10'
+                    }`}
+                  >
+                    🧭 Libros
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('favorites')}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                      activeTab === 'favorites' ? 'bg-white text-blue-700 shadow-sm' : 'text-white/90 hover:bg-white/10'
+                    }`}
+                  >
+                    ⭐ Favoritos ({favorites.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('quickSearch')}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                      activeTab === 'quickSearch' ? 'bg-white text-blue-700 shadow-sm' : 'text-white/90 hover:bg-white/10'
+                    }`}
+                  >
+                    🌟 Historias
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('kidsCorner')}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                      activeTab === 'kidsCorner' ? 'bg-white text-blue-700 shadow-sm' : 'text-white/90 hover:bg-white/10'
+                    }`}
+                  >
+                    🎮 Rincón Niños
+                  </button>
+                </nav>
+              </div>
+
+            </div>
+          </header>
+
+          {/* CONTENIDO PRINCIPAL */}
+          <main className="max-w-5xl mx-auto px-4 mt-6">
+
+            {/* TAB 1: EXPLORADOR */}
+            {activeTab === 'explorer' && (
+              <div>
+                {!selectedBook && (
+                  <div className="animate-in fade-in duration-200">
+                    <div className="bg-gradient-to-r from-sky-400 to-blue-500 rounded-3xl p-6 mb-6 text-white shadow-md flex items-center justify-between">
+                      <div>
+                        <span className="bg-yellow-300 text-blue-900 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider mb-2 inline-block">
+                          ¡Aventura Bíblica! 🚀
+                        </span>
+                        <h2 className="text-2xl sm:text-3xl font-black mb-1">¿Qué historia exploraremos hoy?</h2>
+                        <p className="text-sm text-sky-100">
+                          Explora los 66 libros con audio versículo a versículo, notas y tarjetas.
+                        </p>
+                      </div>
+                      <div className="text-5xl hidden sm:block">📜✨</div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-blue-100 mb-5 flex items-center">
+                      <span className="text-xl mr-3">🔍</span>
+                      <input
+                        type="text"
+                        placeholder="Escribe un libro, autor o categoría (ej. Miqueas, Moisés, Salmos, Amor...)"
+                        className="w-full text-base sm:text-lg outline-none text-slate-700 font-medium bg-transparent"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                      {searchTerm && (
+                        <button 
+                          onClick={() => setSearchTerm('')}
+                          className="text-xs font-bold text-slate-400 hover:text-slate-600 bg-slate-100 px-3 py-1 rounded-full"
+                        >
+                          Limpiar
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none text-xs sm:text-sm">
+                      {CATEGORIES.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setSelectedCategory(cat)}
+                          className={`px-4 py-2 rounded-xl font-bold transition-all whitespace-nowrap ${
+                            selectedCategory === cat
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-blue-50'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                      {filteredBooks.map((book) => (
+                        <button
+                          key={book.id}
+                          onClick={() => setSelectedBook(book)}
+                          className="bg-white border-2 border-slate-100 hover:border-blue-400 rounded-3xl p-4 sm:p-5 flex flex-col items-center text-center transition-all transform hover:-translate-y-1 hover:shadow-xl shadow-sm group"
+                        >
+                          <span className="text-4xl mb-2 group-hover:scale-110 transition-transform">
+                            {book.icon}
+                          </span>
+                          <span className="font-extrabold text-base sm:text-lg text-slate-800 leading-tight mb-1">
+                            {book.name}
+                          </span>
+                          <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full w-full truncate mb-1">
+                            {book.cat}
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            {book.chapters} cap.
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedBook && !selectedChapter && (
+                  <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-md border-2 border-blue-100 mb-6 text-center">
+                    <span className="text-6xl block mb-2">{selectedBook.icon}</span>
+                    <h2 className="text-3xl sm:text-4xl font-black text-slate-800 mb-1">{selectedBook.name}</h2>
+                    <p className="text-xs sm:text-sm text-blue-600 font-bold uppercase tracking-wider mb-2">
+                      {selectedBook.cat} • Autor: {selectedBook.author}
+                    </p>
+                    <p className="text-base text-slate-600 font-medium mb-6">Elige el capítulo que deseas leer:</p>
+                    
+                    <div className="flex flex-wrap justify-center gap-3 max-h-[60vh] overflow-y-auto p-2">
+                      {Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map((chap) => (
+                        <button
+                          key={chap}
+                          onClick={() => fetchChapter(selectedBook, chap)}
+                          className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-50 text-lg sm:text-xl font-black text-slate-700 hover:text-white hover:bg-blue-600 rounded-2xl border-2 border-slate-200 hover:border-blue-600 transition-all shadow-sm active:scale-90 flex items-center justify-center"
+                        >
+                          {chap}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedBook && selectedChapter && (
+                  <div className="bg-white rounded-3xl shadow-xl overflow-hidden border-2 border-slate-100 mb-6">
+                    
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 sm:px-6 py-4 flex flex-wrap justify-between items-center border-b-2 border-blue-100 gap-3">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-2xl">{selectedBook.icon}</span>
+                        <h2 className="text-xl sm:text-2xl font-black text-blue-900">
+                          {selectedBook.name} {selectedChapter}
+                        </h2>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        {/* Botón Escuchar / Pausar */}
+                        <button
+                          onClick={toggleSpeech}
+                          className={`p-2.5 rounded-xl font-black text-xs flex items-center gap-1.5 transition-all shadow-sm ${
+                            isSpeaking ? 'bg-amber-400 text-slate-900 animate-pulse ring-2 ring-amber-500' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'
+                          }`}
+                          title="Reproducir audio versículo a versículo"
+                        >
+                          <span>{isSpeaking ? '⏹️ Detener' : '🔊 Escuchar'}</span>
+                        </button>
+
+                        {/* Botón de Voz Activa */}
+                        <button
+                          onClick={() => setAudioVoiceModalOpen(true)}
+                          className="p-2.5 bg-yellow-300 text-blue-950 font-black rounded-xl hover:bg-yellow-400 text-xs flex items-center gap-1 shadow-sm border border-yellow-400"
+                          title="Cambiar opción de voz del narrador"
+                        >
+                          <span>{VOICE_OPTIONS[activeVoiceOption]?.badge || '🎙️ Voz'}</span>
+                        </button>
+
+                        <div className="bg-white rounded-xl border border-blue-200 p-1 flex space-x-1 text-xs font-bold text-slate-600">
+                          <button onClick={() => setFontSize('small')} className={`px-2 py-1 rounded-lg ${fontSize === 'small' ? 'bg-blue-600 text-white' : ''}`}>A-</button>
+                          <button onClick={() => setFontSize('normal')} className={`px-2 py-1 rounded-lg ${fontSize === 'normal' ? 'bg-blue-600 text-white' : ''}`}>A</button>
+                          <button onClick={() => setFontSize('large')} className={`px-2 py-1 rounded-lg ${fontSize === 'large' ? 'bg-blue-600 text-white' : ''}`}>A+</button>
+                          <button onClick={() => setFontSize('xl')} className={`px-2 py-1 rounded-lg ${fontSize === 'xl' ? 'bg-blue-600 text-white' : ''}`}>A++</button>
+                        </div>
+
+                        <div className="flex space-x-1">
+                          <button
+                            onClick={() => fetchChapter(selectedBook, selectedChapter - 1)}
+                            disabled={selectedChapter <= 1}
+                            className="px-2.5 py-1.5 bg-white border border-blue-200 text-blue-700 rounded-xl disabled:opacity-30 font-bold"
+                          >
+                            ◀
+                          </button>
+                          <button
+                            onClick={() => fetchChapter(selectedBook, selectedChapter + 1)}
+                            disabled={selectedChapter >= selectedBook.chapters}
+                            className="px-2.5 py-1.5 bg-white border border-blue-200 text-blue-700 rounded-xl disabled:opacity-30 font-bold"
+                          >
+                            ▶
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`p-5 sm:p-8 font-serif leading-relaxed text-slate-800 space-y-4 ${
+                      fontSize === 'small' ? 'text-base' : 
+                      fontSize === 'large' ? 'text-xl sm:text-2xl' : 
+                      fontSize === 'xl' ? 'text-2xl sm:text-3xl font-medium' : 'text-lg sm:text-xl'
+                    }`}>
+                      
+                      {loading && (
+                        <div className="text-center py-16 font-sans font-bold text-blue-600">
+                          ⏳ Abriendo los rollos antiguos...
+                        </div>
+                      )}
+
+                      {error && (
+                        <div className="bg-amber-50 border-2 border-amber-200 p-5 rounded-2xl font-sans text-amber-800 text-sm">
+                          ⚠️ {error}
+                        </div>
+                      )}
+
+                      {!loading && !error && verses.map((v, vIndex) => {
+                        const vKey = `${selectedBook.id}_${selectedChapter}_${v.verse}`;
+                        const hasNote = CRITICAL_NOTES[vKey];
+                        const isTarget = targetVerse === v.verse;
+                        const isBeingSpoken = currentSpeakingVerse === v.verse;
+                        const highlightColor = highlights[vKey];
+                        const isFav = favorites.some(f => f.key === vKey);
+                        const activeHighlightObj = HIGHLIGHT_COLORS.find(c => c.id === highlightColor);
+
+                        return (
+                          <div 
+                            key={v.verse} 
+                            className={`rounded-2xl p-3 transition-all ${
+                              isBeingSpoken ? 'bg-amber-100 ring-4 ring-amber-400 shadow-md scale-[1.01]' :
+                              activeHighlightObj ? activeHighlightObj.bgClass : 'hover:bg-slate-50'
+                            } ${isTarget ? 'ring-4 ring-yellow-400 bg-yellow-50' : ''}`}
+                          >
+                            <div className="flex items-start gap-2.5">
+                              <span className={`font-sans text-xs font-black rounded-full w-6 h-6 flex-shrink-0 flex items-center justify-center mt-1 select-none ${
+                                isBeingSpoken ? 'bg-amber-500 text-white animate-bounce' : 'text-blue-600 bg-blue-100'
+                              }`}>
+                                {v.verse}
+                              </span>
+
+                              <div className="flex-1">
+                                <p className="inline">{v.text}</p>
+                              </div>
+
+                              {/* TOOLBAR DEL VERSÍCULO */}
+                              <div className="flex items-center space-x-1 bg-white/95 p-1 rounded-xl shadow-sm border border-slate-200 flex-shrink-0">
+                                
+                                <button
+                                  onClick={() => startSpeechFromVerse(vIndex)}
+                                  className="p-1.5 hover:bg-sky-50 text-sky-600 rounded-lg text-sm font-bold"
+                                  title="Escuchar desde este versículo"
+                                >
+                                  🔊
+                                </button>
+
+                                <button
+                                  onClick={() => toggleFavorite(selectedBook, selectedChapter, v.verse, v.text)}
+                                  className="p-1.5 hover:bg-amber-50 rounded-lg text-amber-500 font-bold"
+                                  title={isFav ? 'Quitar de favoritos' : 'Guardar en favoritos'}
+                                >
+                                  {isFav ? '⭐' : '☆'}
+                                </button>
+
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setActiveColorPicker(activeColorPicker === vKey ? null : vKey)}
+                                    className="p-1.5 hover:bg-slate-100 rounded-lg text-sm"
+                                    title="Resaltar"
+                                  >
+                                    🖍️
+                                  </button>
+
+                                  {activeColorPicker === vKey && (
+                                    <div className="absolute right-0 top-8 bg-white border-2 border-blue-200 rounded-2xl p-2 shadow-xl z-20 flex gap-1.5">
+                                      {HIGHLIGHT_COLORS.map(c => (
+                                        <button
+                                          key={c.id}
+                                          onClick={() => setVerseHighlight(selectedBook, selectedChapter, v.verse, c.id)}
+                                          className={`w-6 h-6 rounded-full ${c.badgeClass} hover:scale-110 transition-transform`}
+                                          title={c.name}
+                                        />
+                                      ))}
+                                      <button
+                                        onClick={() => setVerseHighlight(selectedBook, selectedChapter, v.verse, null)}
+                                        className="p-1 text-slate-400 hover:text-red-500 text-xs font-bold"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <button
+                                  onClick={() => handleCopyText(selectedBook.name, selectedChapter, v.verse, v.text)}
+                                  className="p-1.5 hover:bg-slate-100 rounded-lg text-sm"
+                                  title="Copiar versículo"
+                                >
+                                  {copiedId === `${selectedBook.name}_${selectedChapter}_${v.verse}` ? '✅' : '📋'}
+                                </button>
+
+                                <button
+                                  onClick={() => shareToWhatsAppDirect(selectedBook.name, selectedChapter, v.verse, v.text)}
+                                  className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded-lg text-sm"
+                                  title="Enviar texto directo por WhatsApp"
+                                >
+                                  💬
+                                </button>
+
+                                <button
+                                  onClick={() => setCardModalData({
+                                    bookName: selectedBook.name,
+                                    chapter: selectedChapter,
+                                    verse: v.verse,
+                                    text: v.text,
+                                    icon: selectedBook.icon
+                                  })}
+                                  className="p-1.5 hover:bg-purple-50 text-purple-600 rounded-lg text-sm"
+                                  title="Generar Tarjeta Gráfica Moderna para WhatsApp"
+                                >
+                                  🎨
+                                </button>
+
+                              </div>
+                            </div>
+
+                            {hasNote && (
+                              <div className="mt-3 ml-8 bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 shadow-sm font-sans">
+                                <h4 className="font-black text-amber-950 text-xs mb-0.5">
+                                  🕵️‍♂️ ¡Dato Curioso del Investigador!
+                                </h4>
+                                <p className="text-amber-900 text-xs leading-relaxed">
+                                  {hasNote}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {!loading && !error && verses.length > 0 && (
+                      <div className="bg-slate-50 border-t border-slate-100 px-6 py-4 flex justify-between items-center font-sans text-sm font-bold">
+                        <button
+                          onClick={() => fetchChapter(selectedBook, selectedChapter - 1)}
+                          disabled={selectedChapter <= 1}
+                          className="text-slate-600 hover:text-blue-600 disabled:opacity-30"
+                        >
+                          ◀ Capítulo {selectedChapter - 1}
+                        </button>
+                        <button
+                          onClick={() => fetchChapter(selectedBook, selectedChapter + 1)}
+                          disabled={selectedChapter >= selectedBook.chapters}
+                          className="text-slate-600 hover:text-blue-600 disabled:opacity-30"
+                        >
+                          Capítulo {selectedChapter + 1} ▶
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: MIS FAVORITOS */}
+            {activeTab === 'favorites' && (
+              <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-md border-2 border-blue-100 mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-800 flex items-center gap-2">
+                      ⭐ Mis Versículos Favoritos
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500">
+                      Tus tesoros guardados y notas personales ({favorites.length} guardados)
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl text-xs font-bold">
+                    <button
+                      onClick={() => setFilterFavColor('all')}
+                      className={`px-3 py-1.5 rounded-xl ${filterFavColor === 'all' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-600'}`}
+                    >
+                      Todos
+                    </button>
+                    {HIGHLIGHT_COLORS.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => setFilterFavColor(c.id)}
+                        className={`w-6 h-6 rounded-xl ${c.badgeClass} ${filterFavColor === c.id ? 'ring-2 ring-blue-600' : 'opacity-70'}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {favorites.length === 0 ? (
+                  <div className="text-center py-16">
+                    <div className="text-5xl mb-3">⭐</div>
+                    <h3 className="text-lg font-bold text-slate-700 mb-1">Aún no tienes versículos favoritos</h3>
+                    <p className="text-sm text-slate-500 max-w-md mx-auto mb-4">
+                      Presiona la estrella ⭐ o el resaltador 🖍️ en cualquier versículo para guardarlo aquí.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab('explorer')}
+                      className="bg-blue-600 text-white font-bold px-6 py-2.5 rounded-2xl shadow-md hover:bg-blue-700"
+                    >
+                      Explorar la Biblia
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {favorites
+                      .filter(f => filterFavColor === 'all' || f.color === filterFavColor)
+                      .map((fav) => {
+                        const colorObj = HIGHLIGHT_COLORS.find(c => c.id === fav.color) || HIGHLIGHT_COLORS[0];
+
+                        return (
+                          <div 
+                            key={fav.key}
+                            className={`rounded-3xl p-5 border-2 shadow-sm flex flex-col justify-between ${colorObj.bgClass}`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-black text-blue-900 flex items-center gap-1.5 text-base">
+                                  <span>{fav.bookIcon}</span> {fav.bookName} {fav.chapter}:{fav.verse}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-400 bg-white/80 px-2 py-0.5 rounded-full">
+                                  {fav.date}
+                                </span>
+                              </div>
+
+                              <p className="font-serif text-slate-800 text-base leading-relaxed mb-3">
+                                "{fav.text}"
+                              </p>
+
+                              {fav.note && (
+                                <div className="bg-white/90 p-3 rounded-2xl border border-slate-200 text-xs text-slate-700 font-sans mb-3">
+                                  <span className="font-bold block text-blue-900">📝 Nota:</span>
+                                  <span>{fav.note}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between pt-3 border-t border-black/10 gap-2 font-sans">
+                              <button
+                                onClick={() => jumpFromFavorite(fav)}
+                                className="text-xs font-black text-blue-700 bg-white hover:bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200"
+                              >
+                                📖 Ver en contexto
+                              </button>
+
+                              <div className="flex items-center space-x-1">
+                                <button
+                                  onClick={() => {
+                                    setNoteModalVerse(fav);
+                                    setNoteInputText(fav.note || '');
+                                  }}
+                                  className="p-1.5 bg-white rounded-xl text-xs"
+                                  title="Nota"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => shareToWhatsAppDirect(fav.bookName, fav.chapter, fav.verse, fav.text)}
+                                  className="p-1.5 bg-white rounded-xl text-xs"
+                                  title="WhatsApp"
+                                >
+                                  💬
+                                </button>
+                                <button
+                                  onClick={() => setCardModalData({
+                                    bookName: fav.bookName,
+                                    chapter: fav.chapter,
+                                    verse: fav.verse,
+                                    text: fav.text,
+                                    icon: fav.bookIcon
+                                  })}
+                                  className="p-1.5 bg-white rounded-xl text-xs"
+                                  title="Tarjeta"
+                                >
+                                  🎨
+                                </button>
+                                <button
+                                  onClick={() => setFavorites(favorites.filter(f => f.key !== fav.key))}
+                                  className="p-1.5 bg-white rounded-xl text-xs text-red-500"
+                                  title="Eliminar"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: HISTORIAS Y CITAS */}
+            {activeTab === 'quickSearch' && (
+              <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-md border-2 border-blue-100 mb-6">
+                <h2 className="text-2xl font-black text-slate-800 mb-1 flex items-center gap-2">
+                  🌟 Historias Bíblicas Favoritas
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 mb-6">Toca cualquier relato para abrirlo de inmediato</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {KIDS_STORIES.map((story) => (
+                    <button
+                      key={story.title}
+                      onClick={() => jumpToStory(story)}
+                      className="bg-slate-50 hover:bg-blue-50 border-2 border-slate-100 hover:border-blue-300 rounded-3xl p-5 text-left transition-all group flex flex-col justify-between shadow-sm"
+                    >
+                      <div>
+                        <span className="text-4xl block mb-2">{story.icon}</span>
+                        <h3 className="font-extrabold text-base text-slate-800 group-hover:text-blue-700 leading-tight mb-1">
+                          {story.title}
+                        </h3>
+                        <p className="text-xs text-slate-500 line-clamp-2 mb-3">
+                          {story.desc}
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold text-blue-600 bg-blue-100/60 px-3 py-1 rounded-xl self-start">
+                        {story.bookId} {story.chapter}:{story.verse}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: RINCÓN NIÑOS & TRIVIA */}
+            {activeTab === 'kidsCorner' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-indigo-600 via-blue-600 to-sky-500 rounded-3xl p-6 sm:p-8 text-white shadow-xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="bg-yellow-400 text-indigo-950 text-xs font-black px-3 py-1 rounded-full uppercase">
+                      🎮 Desafío Bíblico
+                    </span>
+                    <span className="text-xs font-bold bg-white/20 px-3 py-1 rounded-full">
+                      Puntos: {triviaScore} ⭐
+                    </span>
+                  </div>
+
+                  <h2 className="text-xl sm:text-2xl font-black mb-3">
+                    Pregunta {triviaStep + 1} de {BIBLE_TRIVIA.length}:
+                  </h2>
+                  <p className="text-lg font-medium mb-6 bg-white/10 p-4 rounded-2xl">
+                    {BIBLE_TRIVIA[triviaStep].q}
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                    {BIBLE_TRIVIA[triviaStep].options.map((opt, idx) => {
+                      const isSelected = triviaSelectedOpt === idx;
+                      const isCorrect = idx === BIBLE_TRIVIA[triviaStep].correct;
+
+                      let btnStyle = 'bg-white text-slate-800 hover:bg-yellow-300';
+                      if (triviaSelectedOpt !== null) {
+                        if (isCorrect) btnStyle = 'bg-emerald-500 text-white font-black';
+                        else if (isSelected) btnStyle = 'bg-red-500 text-white';
+                      }
+
+                      return (
+                        <button
+                          key={opt}
+                          disabled={triviaSelectedOpt !== null}
+                          onClick={() => {
+                            setTriviaSelectedOpt(idx);
+                            if (isCorrect) setTriviaScore(triviaScore + 10);
+                          }}
+                          className={`p-4 rounded-2xl font-bold text-left text-sm transition-all shadow-md ${btnStyle}`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {triviaSelectedOpt !== null && (
+                    <div className="bg-white/20 p-4 rounded-2xl mb-4 text-sm font-medium">
+                      {BIBLE_TRIVIA[triviaStep].expl}
+                    </div>
+                  )}
+
+                  {triviaSelectedOpt !== null && (
+                    <button
+                      onClick={() => {
+                        setTriviaSelectedOpt(null);
+                        setTriviaStep((triviaStep + 1) % BIBLE_TRIVIA.length);
+                      }}
+                      className="bg-yellow-400 text-indigo-950 font-black px-6 py-3 rounded-2xl shadow-lg text-sm uppercase"
+                    >
+                      {triviaStep + 1 === BIBLE_TRIVIA.length ? 'Volver a Jugar 🔄' : 'Siguiente Pregunta ➡️'}
+                    </button>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-md border-2 border-blue-100">
+                  <h2 className="text-2xl font-black text-slate-800 mb-1 flex items-center gap-2">
+                    📚 Diccionario Fácil para Niños
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 mb-6">Palabras difíciles explicadas de forma sencilla</p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {KIDS_GLOSSARY.map((item) => (
+                      <div key={item.term} className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="text-2xl">{item.emoji}</span>
+                          <h3 className="font-extrabold text-blue-900 text-base">{item.term}</h3>
+                        </div>
+                        <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                          {item.simpleDef}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* BARRA INFERIOR MOBILE */}
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t-2 border-blue-100 px-3 py-2 z-40 flex justify-around shadow-2xl">
+            <button
+              onClick={() => setActiveTab('explorer')}
+              className={`flex flex-col items-center py-1 px-3 ${activeTab === 'explorer' ? 'text-blue-600 font-black' : 'text-slate-400'}`}
+            >
+              <span className="text-lg">🧭</span>
+              <span className="text-[10px]">Libros</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('favorites')}
+              className={`flex flex-col items-center py-1 px-3 relative ${activeTab === 'favorites' ? 'text-amber-500 font-black' : 'text-slate-400'}`}
+            >
+              <span className="text-lg">⭐</span>
+              <span className="text-[10px]">Favoritos</span>
+              {favorites.length > 0 && (
+                <span className="absolute top-0 right-1 w-4 h-4 bg-amber-400 text-slate-900 text-[9px] font-black rounded-full flex items-center justify-center">
+                  {favorites.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('quickSearch')}
+              className={`flex flex-col items-center py-1 px-3 ${activeTab === 'quickSearch' ? 'text-blue-600 font-black' : 'text-slate-400'}`}
+            >
+              <span className="text-lg">🌟</span>
+              <span className="text-[10px]">Historias</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('kidsCorner')}
+              className={`flex flex-col items-center py-1 px-3 ${activeTab === 'kidsCorner' ? 'text-blue-600 font-black' : 'text-slate-400'}`}
+            >
+              <span className="text-lg">🎮</span>
+              <span className="text-[10px]">Rincón</span>
+            </button>
+          </nav>
+
+          {/* MODAL NOTA */}
+          {noteModalVerse && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-blue-200">
+                <h3 className="font-black text-lg text-slate-800 mb-2">
+                  📝 Nota para {noteModalVerse.bookName} {noteModalVerse.chapter}:{noteModalVerse.verse}
+                </h3>
+                <p className="text-xs text-slate-500 italic mb-3">"{noteModalVerse.text}"</p>
+                <textarea
+                  rows={3}
+                  placeholder="Escribe tu reflexión..."
+                  className="w-full border-2 border-slate-200 rounded-2xl p-3 text-sm outline-none focus:border-blue-500 mb-4"
+                  value={noteInputText}
+                  onChange={(e) => setNoteInputText(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setNoteModalVerse(null)} className="px-4 py-2 text-xs font-bold text-slate-500">Cancelar</button>
+                  <button onClick={saveVerseNote} className="px-5 py-2 text-xs font-bold bg-blue-600 text-white rounded-xl shadow-md">Guardar</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL PROFESIONAL DE OPCIONES DE VOZ */}
+          {audioVoiceModalOpen && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-blue-200 animate-in zoom-in-95">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-black text-lg text-slate-800 flex items-center gap-2">
+                    🎙️ Configuración de Voz del Narrador
+                  </h3>
+                  <button onClick={() => setAudioVoiceModalOpen(false)} className="text-lg text-slate-400 hover:text-slate-700">✕</button>
+                </div>
+
+                <p className="text-xs text-slate-500 mb-4">
+                  Selecciona la opción de voz que prefieras para la narración bíblica:
+                </p>
+
+                {/* OPCIONES DE VOZ 1, 2, 3, 4 */}
+                <div className="space-y-2 mb-4">
+                  {Object.values(VOICE_OPTIONS).map((opt) => {
+                    const isActive = activeVoiceOption === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => handleSelectVoiceOption(opt.id)}
+                        className={`w-full p-3 rounded-2xl text-left border-2 transition-all flex items-start space-x-3 ${
+                          isActive
+                            ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-400 shadow-sm'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-xl mt-0.5">🎙️</span>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-xs sm:text-sm text-slate-800">{opt.title}</span>
+                            {isActive && (
+                              <span className="text-[10px] font-black text-white bg-blue-600 px-2 py-0.5 rounded-full">
+                                Activo
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 leading-snug mt-0.5">{opt.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* SELECTOR DE VOZ DEL SISTEMA */}
+                <div className="mb-4">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                    Voz instalada en el dispositivo:
+                  </label>
+                  <select
+                    className="w-full border border-slate-200 rounded-xl p-2 text-xs font-medium outline-none focus:border-blue-500 bg-white"
+                    value={selectedVoiceName}
+                    onChange={(e) => {
+                      setSelectedVoiceName(e.target.value);
+                      localStorage.setItem('super_biblia_voice', e.target.value);
+                    }}
+                  >
+                    {availableVoices.map(v => (
+                      <option key={v.name} value={v.name}>
+                        {v.name} ({v.lang})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={testVoiceSample}
+                    className="px-4 py-2.5 rounded-xl text-xs font-black bg-yellow-400 hover:bg-yellow-300 text-slate-900 shadow-md flex items-center gap-1.5"
+                  >
+                    🔊 Probar Voz
+                  </button>
+                  <button
+                    onClick={() => setAudioVoiceModalOpen(false)}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+                  >
+                    Guardar y Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL TARJETA WHATSAPP */}
+          {cardModalData && (
+            <WhatsAppCardModal 
+              data={cardModalData} 
+              onClose={() => setCardModalData(null)} 
+            />
+          )}
+
+        </div>
+      );
+    }
+
+    // =========================================================================
+    // MODAL TARJETA WHATSAPP CANVAS
+    // =========================================================================
+    function WhatsAppCardModal({ data, onClose }) {
+      const canvasRef = useRef(null);
+      const [theme, setTheme] = useState('sunset');
+
+      const THEMES = {
+        sunset: { name: '🌅 Atardecer Dorado', bg1: '#FF7E5F', bg2: '#FEB47B', text: '#4A2810', ref: '#C05621' },
+        cosmic: { name: '🌌 Cielo Estrellado', bg1: '#1E3C72', bg2: '#2A5298', text: '#1A202C', ref: '#2B6CB0' },
+        emerald: { name: '🌿 Jardín de Paz', bg1: '#11998E', bg2: '#38EF7D', text: '#1A365D', ref: '#2F855A' },
+        rainbow: { name: '🎨 Arcoíris Infantil', bg1: '#FF9A9E', bg2: '#FECFEF', text: '#2D3748', ref: '#D53F8C' }
+      };
+
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const curTheme = THEMES[theme];
+
+        canvas.width = 1080;
+        canvas.height = 1080;
+
+        // Fondo
+        const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+        grad.addColorStop(0, curTheme.bg1);
+        grad.addColorStop(1, curTheme.bg2);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1080, 1080);
+
+        // Tarjeta Central
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+        const x = 90, y = 120, w = 900, h = 840, r = 50;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // Encabezado
+        ctx.font = 'bold 38px sans-serif';
+        ctx.fillStyle = curTheme.ref;
+        ctx.textAlign = 'center';
+        ctx.fillText('✨ SÚPER BIBLIA EXPLORER ✨', 540, 220);
+
+        // Versículo
+        ctx.font = 'italic 44px Georgia, serif';
+        ctx.fillStyle = curTheme.text;
+        const words = `"${data.text}"`.split(' ');
+        let line = '';
+        const lines = [];
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          if (ctx.measureText(testLine).width > 760 && n > 0) {
+            lines.push(line);
+            line = words[n] + ' ';
+          } else {
+            line = testLine;
+          }
+        }
+        lines.push(line);
+
+        const startY = 460 - (lines.length * 30);
+        for (let k = 0; k < lines.length; k++) {
+          ctx.fillText(lines[k].trim(), 540, startY + (k * 62));
+        }
+
+        // Cita
+        ctx.font = 'bold 48px sans-serif';
+        ctx.fillStyle = curTheme.ref;
+        ctx.fillText(`📖 ${data.bookName} ${data.chapter}:${data.verse}`, 540, 780);
+
+        ctx.font = '500 28px sans-serif';
+        ctx.fillStyle = '#718096';
+        ctx.fillText('Reina Valera 1960 • Comparte la Palabra', 540, 850);
+      }, [theme, data]);
+
+      const handleDownload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const link = document.createElement('a');
+        link.download = `Versiculo_${data.bookName}_${data.chapter}_${data.verse}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      };
+
+      const handleShare = async () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        if (navigator.share && navigator.canShare) {
+          canvas.toBlob(async (blob) => {
+            const file = new File([blob], `Versiculo_${data.bookName}.png`, { type: 'image/png' });
+            try {
+              await navigator.share({
+                title: `${data.bookName} ${data.chapter}:${data.verse}`,
+                text: `"${data.text}" - Súper Biblia Explorer`,
+                files: [file]
+              });
+            } catch {}
+          });
+        } else {
+          handleDownload();
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border-2 border-purple-200 my-8">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-black text-lg text-slate-800">🎨 Tarjeta de Versículo para WhatsApp</h3>
+              <button onClick={onClose} className="text-lg">✕</button>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden shadow-inner border border-slate-200 mb-4 bg-slate-100 flex items-center justify-center">
+              <canvas ref={canvasRef} className="w-full max-h-[300px] object-contain" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-5">
+              {Object.keys(THEMES).map(tKey => (
+                <button
+                  key={tKey}
+                  onClick={() => setTheme(tKey)}
+                  className={`p-2.5 rounded-xl text-xs font-bold text-left border ${
+                    theme === tKey ? 'bg-purple-50 border-purple-500 text-purple-900' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  {THEMES[tKey].name}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button onClick={onClose} className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500">Cerrar</button>
+              <button onClick={handleDownload} className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                💾 Descargar Imagen
+              </button>
+              <button onClick={handleShare} className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-md hover:bg-emerald-700">
+                📲 Compartir WhatsApp
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
